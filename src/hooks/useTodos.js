@@ -1,13 +1,15 @@
+
 import { useState, useEffect } from 'react'
 import axios from 'axios'
 
-
 const API_URL = import.meta.env.VITE_API_URL || 'https://todo-backend-ke7l.onrender.com/api/todos'
+
 export function useTodos() {
   const [todos, setTodos] = useState([])
   const [task, setTask] = useState('')
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
+  const [editingId, setEditingId] = useState(null)
 
   useEffect(() => {
     fetchTodos()
@@ -24,13 +26,24 @@ export function useTodos() {
     }
   }
 
+  const handleEditClick = (todo) => {
+    setEditingId(todo._id)
+    setTask(todo.task)
+  }
+
   const addTodo = async (e) => {
     e.preventDefault()
     if (!task.trim()) return
     setSubmitting(true)
     try {
-      const res = await axios.post(API_URL, { task })
-      setTodos([res.data, ...todos])
+      if (editingId) {
+        const res = await axios.put(`${API_URL}/${editingId}`, { task })
+        setTodos(todos.map(todo => todo._id === editingId ? res.data : todo))
+        setEditingId(null)
+      } else {
+        const res = await axios.post(API_URL, { task })
+        setTodos([res.data, ...todos])
+      }
       setTask('')
     } catch (err) {
       console.error(err)
@@ -52,6 +65,10 @@ export function useTodos() {
     try {
       await axios.delete(`${API_URL}/${id}`)
       setTodos(todos.filter(todo => todo._id !== id))
+      if (editingId === id) {
+        setEditingId(null)
+        setTask('')
+      }
     } catch (err) {
       console.error(err)
     }
@@ -63,8 +80,10 @@ export function useTodos() {
     setTask,
     loading,
     submitting,
+    editingId,
     addTodo,
     toggleTodo,
-    deleteTodo
+    deleteTodo,
+    handleEditClick
   }
 }
